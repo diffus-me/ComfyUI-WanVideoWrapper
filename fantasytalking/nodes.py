@@ -1,6 +1,8 @@
 import os
 import torch
 import gc
+
+import execution_context
 from ..utils import log
 
 from accelerate import init_empty_weights
@@ -65,13 +67,16 @@ class DownloadAndLoadWav2VecModel:
 
 class FantasyTalkingModelLoader:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(s, context: execution_context.ExecutionContext):
         return {
             "required": {
-                "model": (folder_paths.get_filename_list("diffusion_models"), {"tooltip": "These models are loaded from the 'ComfyUI/models/diffusion_models' -folder",}),
+                "model": (folder_paths.get_filename_list(context, "diffusion_models"), {"tooltip": "These models are loaded from the 'ComfyUI/models/diffusion_models' -folder",}),
 
             "base_precision": (["fp32", "bf16", "fp16"], {"default": "fp16"}),
             },
+            "hidden": {
+                "context": "EXECUTION_CONTEXT",
+            }
         }
 
     RETURN_TYPES = ("FANTASYTALKINGMODEL",)
@@ -79,14 +84,14 @@ class FantasyTalkingModelLoader:
     FUNCTION = "loadmodel"
     CATEGORY = "WanVideoWrapper"
 
-    def loadmodel(self, model, base_precision):
+    def loadmodel(self, model, base_precision, context: execution_context.ExecutionContext):
         from .model import FantasyTalkingAudioConditionModel
 
         device = mm.get_torch_device()
         offload_device = mm.unet_offload_device()
         base_dtype = {"fp8_e4m3fn": torch.float8_e4m3fn, "fp8_e4m3fn_fast": torch.float8_e4m3fn, "bf16": torch.bfloat16, "fp16": torch.float16, "fp16_fast": torch.float16, "fp32": torch.float32}[base_precision]
         
-        model_path = folder_paths.get_full_path_or_raise("diffusion_models", model)
+        model_path = folder_paths.get_full_path_or_raise(context, "diffusion_models", model)
         sd = load_torch_file(model_path, device=offload_device, safe_load=True)
 
         with init_empty_weights():
