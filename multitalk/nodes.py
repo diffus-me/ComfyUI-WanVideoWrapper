@@ -1,3 +1,4 @@
+import execution_context
 import folder_paths
 from comfy import model_management as mm
 from comfy.utils import load_torch_file, common_upscale
@@ -12,14 +13,16 @@ folder_paths.add_model_folder_path("wav2vec2", os.path.join(folder_paths.models_
 
 class Wav2VecModelLoader:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(s, context: execution_context.ExecutionContext):
         return {
             "required": {
-                "model": (folder_paths.get_filename_list("wav2vec2"), {"tooltip": "These models are loaded from the 'ComfyUI/models/wav2vec2' -folder",}),
+                "model": (folder_paths.get_filename_list(context, "wav2vec2"), {"tooltip": "These models are loaded from the 'ComfyUI/models/wav2vec2' -folder",}),
                 "base_precision": (["fp32", "bf16", "fp16"], {"default": "fp16"}),
                 "load_device": (["main_device", "offload_device"], {"default": "main_device", "tooltip": "Initial device to load the model to, NOT recommended with the larger models unless you have 48GB+ VRAM"}),
             },
-           
+            "hidden": {
+                "context": "EXECUTION_CONTEXT",
+            }
         }
     
 
@@ -28,7 +31,7 @@ class Wav2VecModelLoader:
     FUNCTION = "loadmodel"
     CATEGORY = "WanVideoWrapper"
 
-    def loadmodel(self, model, base_precision, load_device):
+    def loadmodel(self, model, base_precision, load_device, context: execution_context.ExecutionContext):
         from transformers import Wav2Vec2Config, Wav2Vec2FeatureExtractor
         from ..multitalk.wav2vec2 import Wav2Vec2Model as MultiTalkWav2Vec2Model
         
@@ -57,7 +60,7 @@ class Wav2VecModelLoader:
         }
         wav2vec_feature_extractor = Wav2Vec2FeatureExtractor(**feature_extractor_config)
 
-        model_path = folder_paths.get_full_path_or_raise("wav2vec2", model)
+        model_path = folder_paths.get_full_path_or_raise(context, "wav2vec2", model)
         sd = load_torch_file(model_path, device=transfomer_load_device, safe_load=True)
 
         for name, param in wav2vec2.named_parameters():
@@ -80,11 +83,14 @@ class Wav2VecModelLoader:
     
 class MultiTalkModelLoader:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(s, context: execution_context.ExecutionContext):
         return {
             "required": {
-                "model": (folder_paths.get_filename_list("unet_gguf") + folder_paths.get_filename_list("diffusion_models"), {"tooltip": "These models are loaded from the 'ComfyUI/models/diffusion_models' -folder",}),
+                "model": (folder_paths.get_filename_list(context, "unet_gguf") + folder_paths.get_filename_list(context, "diffusion_models"), {"tooltip": "These models are loaded from the 'ComfyUI/models/diffusion_models' -folder",}),
             },
+            "hidden": {
+                "context": "EXECUTION_CONTEXT",
+            }
         }
 
     RETURN_TYPES = ("MULTITALKMODEL",)
@@ -92,10 +98,10 @@ class MultiTalkModelLoader:
     FUNCTION = "loadmodel"
     CATEGORY = "WanVideoWrapper"
 
-    def loadmodel(self, model, base_precision=None):
+    def loadmodel(self, model, base_precision=None, context: execution_context.ExecutionContext=None):
         from .multitalk import AudioProjModel
         
-        model_path = folder_paths.get_full_path_or_raise("diffusion_models", model)
+        model_path = folder_paths.get_full_path_or_raise(context, "diffusion_models", model)
 
         audio_window=5
         intermediate_dim=512

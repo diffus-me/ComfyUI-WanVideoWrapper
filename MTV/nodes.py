@@ -1,6 +1,8 @@
 import os
 import torch
 import gc
+
+import execution_context
 from ..utils import log, dict_to_device
 import numpy as np
 from accelerate import init_empty_weights
@@ -75,11 +77,14 @@ class LoadNLFModel:
 
 class LoadVQVAE:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(s, context: execution_context.ExecutionContext):
         return {
             "required": {
-                "model_name": (folder_paths.get_filename_list("vae"), {"tooltip": "These models are loaded from 'ComfyUI/models/vae'"}),
+                "model_name": (folder_paths.get_filename_list(context, "vae"), {"tooltip": "These models are loaded from 'ComfyUI/models/vae'"}),
             },
+            "hidden": {
+                "context": "EXECUTION_CONTEXT"
+            }
         }
 
     RETURN_TYPES = ("VQVAE",)
@@ -87,8 +92,8 @@ class LoadVQVAE:
     FUNCTION = "loadmodel"
     CATEGORY = "WanVideoWrapper"
 
-    def loadmodel(self, model_name):
-        model_path = folder_paths.get_full_path("vae", model_name)
+    def loadmodel(self, model_name, context: execution_context.ExecutionContext):
+        model_path = folder_paths.get_full_path(context, "vae", model_name)
         vae_sd = load_torch_file(model_path, safe_load=True)
 
         # Get motion tokenizer

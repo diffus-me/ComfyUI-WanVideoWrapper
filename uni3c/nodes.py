@@ -1,5 +1,6 @@
 
 import torch
+
 from ..utils import log
 import comfy.model_management as mm
 from comfy.utils import ProgressBar, load_torch_file
@@ -13,12 +14,14 @@ import folder_paths
 import json
 import numpy as np
 
+import execution_context
+
 class WanVideoUni3C_ControlnetLoader:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(s, context: execution_context.ExecutionContext):
         return {
             "required": {
-                "model": (folder_paths.get_filename_list("controlnet"), {"tooltip": "These models are loaded from the 'ComfyUI/models/controlnet' -folder",}),
+                "model": (folder_paths.get_filename_list(context, "controlnet"), {"tooltip": "These models are loaded from the 'ComfyUI/models/controlnet' -folder",}),
 
             "base_precision": (["fp32", "bf16", "fp16"], {"default": "fp16"}),
             "quantization": (['disabled', 'fp8_e4m3fn', 'fp8_e5m2'], {"default": 'disabled', "tooltip": "optional quantization method"}),
@@ -31,6 +34,9 @@ class WanVideoUni3C_ControlnetLoader:
             "optional": {
                 "compile_args": ("WANCOMPILEARGS", ),
                 #"block_swap_args": ("BLOCKSWAPARGS", ),
+            },
+            "hidden": {
+                "context": "EXECUTION_CONTEXT",
             }
         }
 
@@ -39,7 +45,7 @@ class WanVideoUni3C_ControlnetLoader:
     FUNCTION = "loadmodel"
     CATEGORY = "WanVideoWrapper"
 
-    def loadmodel(self, model, base_precision, load_device, quantization, attention_mode, compile_args=None):
+    def loadmodel(self, model, base_precision, load_device, quantization, attention_mode, compile_args=None, context: execution_context.ExecutionContext=None):
 
         device = mm.get_torch_device()
         offload_device = mm.unet_offload_device()
@@ -49,7 +55,7 @@ class WanVideoUni3C_ControlnetLoader:
         base_dtype = {"fp8_e4m3fn": torch.float8_e4m3fn, "fp8_e4m3fn_fast": torch.float8_e4m3fn, "bf16": torch.bfloat16, "fp16": torch.float16, "fp16_fast": torch.float16, "fp32": torch.float32}[base_precision]
         
 
-        model_path = folder_paths.get_full_path_or_raise("controlnet", model)
+        model_path = folder_paths.get_full_path_or_raise(context, "controlnet", model)
       
         sd = load_torch_file(model_path, device=transformer_load_device, safe_load=True)
 

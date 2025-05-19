@@ -2,6 +2,8 @@
 import torch
 import torch.nn as nn
 import os
+
+import execution_context
 import folder_paths
 from comfy.utils import load_torch_file, ProgressBar
 from tqdm import tqdm
@@ -77,23 +79,26 @@ config_7b ={
 
 class QwenLoader:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(s, context: execution_context.ExecutionContext):
         return {"required": {
-            "model": (folder_paths.get_filename_list("text_encoders"), ),
+            "model": (folder_paths.get_filename_list(context, "text_encoders"), ),
             "load_device": (["main_device", "offload_device"], {"advanced": True}),
             "precision": (["fp16", "bf16", "fp32"], {"default": "bf16"}),
         },
+            "hidden": {
+                "context": "EXECUTION_CONTEXT",
+            }
     }
     RETURN_TYPES = ("QWENMODEL",)
     FUNCTION = "load"
     CATEGORY = "WanVideoWrapper"
 
-    def load(self, model, load_device, precision):
+    def load(self, model, load_device, precision, context: execution_context.ExecutionContext):
         transformer_load_device = device if load_device == "main_device" else offload_device
         base_dtype = {"fp8_e4m3fn": torch.float8_e4m3fn, "fp8_e4m3fn_fast": torch.float8_e4m3fn, "bf16": torch.bfloat16, "fp16": torch.float16, "fp16_fast": torch.float16, "fp32": torch.float32}[precision]
 
 
-        sd = load_torch_file(folder_paths.get_full_path("text_encoders", model))
+        sd = load_torch_file(folder_paths.get_full_path(context, "text_encoders", model))
         tokenizer_path = os.path.join(script_directory, "tokenizer")
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path, trust_remote_code=True)
 
@@ -204,15 +209,18 @@ class WanVideoPromptExtender:
     
 class WanVideoPromptExtenderSelect:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(s, context: execution_context.ExecutionContext):
         return {"required": {
-            "model": (folder_paths.get_filename_list("text_encoders"), ),
+            "model": (folder_paths.get_filename_list(context, "text_encoders"), ),
             "max_new_tokens": ("INT", {"default": 512, "min": 1, "max": 2048, "step": 1, "tooltip": "Maximum number of new tokens to generate."}),
             "system_prompt": (SYSTEM_PROMPT_KEYS, {"tooltip": "System prompt to use for the model."}),
         },
         "optional": {
             "custom_system_prompt": ("STRING", {"default": "", "forceInput": True, "tooltip": "Custom system prompt to use instead of the predefined ones."}),
             "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
+        },
+        "hidden": {
+            "context": "EXECUTION_CONTEXT_KEY",
         }
         }
     RETURN_TYPES = ("WANVIDEOPROMPTEXTENDER_ARGS",)
@@ -220,7 +228,7 @@ class WanVideoPromptExtenderSelect:
     FUNCTION = "set"
     CATEGORY = "WanVideoWrapper"
 
-    def set(self, model, system_prompt, max_new_tokens, custom_system_prompt=None, seed=0):
+    def set(self, model, system_prompt, max_new_tokens, custom_system_prompt=None, seed=0, context: execution_context.ExecutionContext=None):
 
         if custom_system_prompt is None:
             sys_prompt = next((item["prompt"] for item in SYSTEM_PROMPT_MAP if item["label"] == system_prompt), "")
