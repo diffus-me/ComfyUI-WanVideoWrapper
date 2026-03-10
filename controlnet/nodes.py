@@ -10,17 +10,22 @@ from accelerate import init_empty_weights
 from accelerate.utils import set_module_tensor_to_device
 import folder_paths
 
+import execution_context
+
 class WanVideoControlnetLoader:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(s, context: execution_context.ExecutionContext):
         return {
             "required": {
-                "model": (folder_paths.get_filename_list("controlnet"), {"tooltip": "These models are loaded from the 'ComfyUI/models/controlnet' -folder",}),
+                "model": (folder_paths.get_filename_list(context, "controlnet"), {"tooltip": "These models are loaded from the 'ComfyUI/models/controlnet' -folder",}),
 
             "base_precision": (["fp32", "bf16", "fp16"], {"default": "bf16"}),
             "quantization": (['disabled', 'fp8_e4m3fn', 'fp8_e4m3fn_fast', 'fp8_e5m2', 'fp8_e4m3fn_fast_no_ffn'], {"default": 'disabled', "tooltip": "optional quantization method"}),
             "load_device": (["main_device", "offload_device"], {"default": "main_device", "tooltip": "Initial device to load the model to, NOT recommended with the larger models unless you have 48GB+ VRAM"}),
             },
+            "hidden": {
+                "context": "EXECUTION_CONTEXT",
+            }
         }
 
     RETURN_TYPES = ("WANVIDEOCONTROLNET",)
@@ -29,7 +34,7 @@ class WanVideoControlnetLoader:
     CATEGORY = "WanVideoWrapper"
     DESCRIPTION = "Loads ControlNet model from 'https://huggingface.co/collections/TheDenk/wan21-controlnets-68302b430411dafc0d74d2fc'"
 
-    def loadmodel(self, model, base_precision, load_device, quantization):
+    def loadmodel(self, model, base_precision, load_device, quantization, context: execution_context.ExecutionContext):
 
         device = mm.get_torch_device()
         offload_device = mm.unet_offload_device()
@@ -38,7 +43,7 @@ class WanVideoControlnetLoader:
         
         base_dtype = {"fp8_e4m3fn": torch.float8_e4m3fn, "fp8_e4m3fn_fast": torch.float8_e4m3fn, "bf16": torch.bfloat16, "fp16": torch.float16, "fp16_fast": torch.float16, "fp32": torch.float32}[base_precision]
         
-        model_path = folder_paths.get_full_path_or_raise("controlnet", model)
+        model_path = folder_paths.get_full_path_or_raise(context, "controlnet", model)
       
         sd = load_torch_file(model_path, device=transformer_load_device, safe_load=True)
         

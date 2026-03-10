@@ -1,5 +1,7 @@
 import torch
 import torch.nn as nn
+
+import execution_context
 import folder_paths
 import os
 
@@ -75,9 +77,9 @@ if not "mmaudio" in folder_paths.folder_names_and_paths:
 class OviMMAudioVAELoader:
     """Loads MMAudio VAE for audio encoding/decoding in Ovi"""
     @classmethod
-    def INPUT_TYPES(s):
-        s.vae_files = folder_paths.get_filename_list("vae")
-        s.mmaudio_files = folder_paths.get_filename_list("mmaudio")
+    def INPUT_TYPES(s, exec_context: execution_context.ExecutionContext):
+        s.vae_files = folder_paths.get_filename_list(exec_context, "vae")
+        s.mmaudio_files = folder_paths.get_filename_list(exec_context, "mmaudio")
         s.all_files = s.vae_files + s.mmaudio_files
 
         return {
@@ -85,6 +87,9 @@ class OviMMAudioVAELoader:
                 "vae": (s.all_files, {"tooltip": "MMAudio VAE 16k (v1-16.pth) model from models/vae or models/mmaudio"}),
                 "vocoder": (s.all_files, {"tooltip": "BigVGAN vocoder (best_netG.pt) from models/vae or models/mmaudio"}),
                 "precision": (["bf16", "fp16", "fp32"], {"default": "bf16"}),
+            },
+            "hidden": {
+                "exec_context": "EXECUTION_CONTEXT",
             }
         }
 
@@ -94,11 +99,11 @@ class OviMMAudioVAELoader:
     CATEGORY = "WanVideoWrapper/Ovi"
     DESCRIPTION = "Loads MMAudio VAE for Ovi audio generation"
 
-    def loadmodel(self, vae, vocoder, precision):
+    def loadmodel(self, vae, vocoder, precision, exec_context: execution_context.ExecutionContext):
         dtype = {"bf16": torch.bfloat16, "fp16": torch.float16, "fp32": torch.float32}[precision]
 
-        vae_path = folder_paths.get_full_path("vae", vae) if vae in self.vae_files else folder_paths.get_full_path("mmaudio", vae)
-        vocoder_path = folder_paths.get_full_path("vae", vocoder) if vocoder in self.vae_files else folder_paths.get_full_path("mmaudio", vocoder)
+        vae_path = folder_paths.get_full_path(exec_context, "vae", vae) if vae in self.vae_files else folder_paths.get_full_path(exec_context, "mmaudio", vae)
+        vocoder_path = folder_paths.get_full_path(exec_context, "vae", vocoder) if vocoder in self.vae_files else folder_paths.get_full_path(exec_context, "mmaudio", vocoder)
 
         vae = FeaturesUtils(
             tod_vae_ckpt=vae_path,

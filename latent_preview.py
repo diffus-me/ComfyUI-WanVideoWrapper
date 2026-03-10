@@ -69,9 +69,9 @@ class Latent2RGBPreviewer(LatentPreviewer):
         return preview_to_image(latent_image)
 
 
-def get_previewer(device, latent_format):
+def get_previewer(exec_context, device, latent_format):
     previewer = None
-    method = args.preview_method
+    method = exec_context.extra_data.get("preview_method", None) or args.preview_method
     if method != LatentPreviewMethod.NoPreviews:
         if method == LatentPreviewMethod.Auto:
             method = LatentPreviewMethod.Latent2RGB
@@ -79,9 +79,9 @@ def get_previewer(device, latent_format):
         if method == LatentPreviewMethod.TAESD:
             try:
                 if latent_format == Wan22:
-                    taehv_path = folder_paths.get_full_path("vae_approx", "taew2_2.safetensors")
+                    taehv_path = folder_paths.get_full_path(exec_context, "vae_approx", "taew2_2.safetensors")
                 else:
-                    taehv_path = folder_paths.get_full_path("vae_approx", "taew2_1.safetensors")
+                    taehv_path = folder_paths.get_full_path(exec_context, "vae_approx", "taew2_1.safetensors")
                 taesd = TAEHV(comfy.utils.load_torch_file(taehv_path)).to(device)
                 previewer = TAESDPreviewerImpl(taesd)
                 previewer = WrappedPreviewer(previewer, rate=16)
@@ -96,12 +96,12 @@ def get_previewer(device, latent_format):
                 previewer = WrappedPreviewer(previewer, rate=4)
     return previewer
 
-def prepare_callback(model, steps, x0_output_dict=None):
+def prepare_callback(context, model, steps, x0_output_dict=None):
     preview_format = "JPEG"
     if preview_format not in ["JPEG", "PNG"]:
         preview_format = "JPEG"
 
-    previewer = get_previewer(model.load_device, model.model.latent_format)
+    previewer = get_previewer(context, model.load_device, model.model.latent_format)
 
     if steps is not None:
         pbar = comfy.utils.ProgressBar(steps)

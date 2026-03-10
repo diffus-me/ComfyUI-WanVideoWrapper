@@ -1,3 +1,4 @@
+import execution_context
 import folder_paths
 import torch
 
@@ -30,15 +31,18 @@ class WanVideoAddFlashVSRInput:
 
 class WanVideoFlashVSRDecoderLoader:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(s, exec_context: execution_context.ExecutionContext):
         return {
             "required": {
-                "model_name": (folder_paths.get_filename_list("vae"), {"tooltip": "These models are loaded from 'ComfyUI/models/vae'"}),
+                "model_name": (folder_paths.get_filename_list(exec_context, "vae"), {"tooltip": "These models are loaded from 'ComfyUI/models/vae'"}),
             },
             "optional": {
                 "precision": (["fp16", "fp32", "bf16"],
                     {"default": "bf16"}
                 ),
+            },
+            "hidden": {
+                "exec_context": "EXECUTION_CONTEXT",
             }
         }
 
@@ -48,10 +52,10 @@ class WanVideoFlashVSRDecoderLoader:
     CATEGORY = "WanVideoWrapper"
     DESCRIPTION = "Loads Wan VAE model from 'ComfyUI/models/vae'"
 
-    def loadmodel(self, model_name, precision):
+    def loadmodel(self, model_name, precision, exec_context: execution_context.ExecutionContext):
         from .TCDecoder import build_tcdecoder
         dtype = {"bf16": torch.bfloat16, "fp16": torch.float16, "fp32": torch.float32}[precision]
-        model_path = folder_paths.get_full_path("vae", model_name)
+        model_path = folder_paths.get_full_path(exec_context, "vae", model_name)
         sd = load_torch_file(model_path, safe_load=True)
 
         TCDecoder = build_tcdecoder(new_channels=[512, 256, 128, 128], new_latent_channels=16+768, dtype=dtype)

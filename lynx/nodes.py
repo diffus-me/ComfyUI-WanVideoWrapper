@@ -1,5 +1,7 @@
 import os
 import torch
+
+import execution_context
 from ..utils import log
 import numpy as np
 
@@ -15,12 +17,15 @@ from .resampler import Resampler
 
 class LoadLynxResampler:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(s, exec_context: execution_context.ExecutionContext):
         return {
             "required": {
-                "model_name": (folder_paths.get_filename_list("diffusion_models"), {"tooltip": "These models are loaded from 'ComfyUI/models/diffusion_models'"}),
+                "model_name": (folder_paths.get_filename_list(exec_context, "diffusion_models"), {"tooltip": "These models are loaded from 'ComfyUI/models/diffusion_models'"}),
                 "precision": (["fp32", "bf16", "fp16"], {"default": "fp16"}),
             },
+            "hidden": {
+                "exec_context": "EXECUTION_CONTEXT",
+            }
         }
 
     RETURN_TYPES = ("LYNXRESAMPLER",)
@@ -28,10 +33,10 @@ class LoadLynxResampler:
     FUNCTION = "loadmodel"
     CATEGORY = "WanVideoWrapper"
 
-    def loadmodel(self, model_name, precision):
+    def loadmodel(self, model_name, precision, exec_context: execution_context.ExecutionContext):
         dtype = {"bf16": torch.bfloat16, "fp16": torch.float16, "fp32": torch.float32}[precision]
 
-        model_path = folder_paths.get_full_path("diffusion_models", model_name)
+        model_path = folder_paths.get_full_path(exec_context, "diffusion_models", model_name)
         resampler_sd = load_torch_file(model_path, safe_load=True)
 
         output_dim = resampler_sd["proj_out.weight"].shape[0]

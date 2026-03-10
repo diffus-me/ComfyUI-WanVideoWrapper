@@ -25,6 +25,8 @@ from ..custom_linear import remove_lora_from_module, set_lora_params, _replace_l
 device = mm.get_torch_device()
 offload_device = mm.unet_offload_device()
 
+import execution_context
+
 script_directory = os.path.dirname(os.path.abspath(__file__))
 
 def generate_timestep_matrix(
@@ -132,6 +134,9 @@ class WanVideoDiffusionForcingSampler:
                 "rope_function": (["default", "comfy"], {"default": "comfy", "tooltip": "Comfy's RoPE implementation doesn't use complex numbers and can thus be compiled, that should be a lot faster when using torch.compile"}),
                 "experimental_args": ("EXPERIMENTALARGS", ),
                 "unianimate_poses": ("UNIANIMATE_POSE", ),
+            },
+            "hidden": {
+                "context": "EXECUTION_CONTEXT"
             }
         }
 
@@ -141,8 +146,9 @@ class WanVideoDiffusionForcingSampler:
     CATEGORY = "WanVideoWrapper"
 
     def process(self, model, text_embeds, image_embeds, shift, fps, steps, addnoise_condition, cfg, seed, scheduler, 
-        force_offload=True, samples=None, prefix_samples=None, denoise_strength=1.0, slg_args=None, rope_function="default", cache_args=None, teacache_args=None, 
-        experimental_args=None, unianimate_poses=None):
+        force_offload=True, samples=None, prefix_samples=None, denoise_strength=1.0, slg_args=None, rope_function="default", cache_args=None, teacache_args=None,
+        experimental_args=None, unianimate_poses=None,
+        context: execution_context.ExecutionContext=None):
         #assert not (context_options and teacache_args), "Context options cannot currently be used together with teacache."
         patcher = model
         model = model.model
@@ -390,7 +396,7 @@ class WanVideoDiffusionForcingSampler:
             from latent_preview import prepare_callback
         else:
             from ..latent_preview import prepare_callback #custom for tiny VAE previews
-        callback = prepare_callback(patcher, steps)
+        callback = prepare_callback(context, patcher, steps)
 
         #blockswap init
         init_blockswap(transformer, block_swap_args, model)

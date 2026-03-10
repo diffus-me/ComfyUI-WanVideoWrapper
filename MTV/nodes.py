@@ -7,6 +7,8 @@ import comfy.model_management as mm
 from comfy.utils import load_torch_file
 import folder_paths
 
+import execution_context
+
 script_directory = os.path.dirname(os.path.abspath(__file__))
 device = mm.get_torch_device()
 offload_device = mm.unet_offload_device()
@@ -95,15 +97,18 @@ class DownloadAndLoadNLFModel:
 
 class LoadNLFModel:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(s, exec_context: execution_context.ExecutionContext):
         return {
             "required": {
-                "nlf_model": (folder_paths.get_filename_list("nlf"), {"tooltip": "These models are loaded from the 'ComfyUI/models/nlf' -folder",}),
+                "nlf_model": (folder_paths.get_filename_list(exec_context, "nlf"), {"tooltip": "These models are loaded from the 'ComfyUI/models/nlf' -folder",}),
 
             },
              "optional": {
                 "warmup": ("BOOLEAN", {"default": True, "tooltip": "Whether to warmup the model after loading"}),
              },
+            "hidden": {
+                "exec_context": "EXECUTION_CONTEXT",
+            }
         }
 
     RETURN_TYPES = ("NLFMODEL",)
@@ -111,9 +116,9 @@ class LoadNLFModel:
     FUNCTION = "loadmodel"
     CATEGORY = "WanVideoWrapper"
 
-    def loadmodel(self, nlf_model, warmup=True):
+    def loadmodel(self, nlf_model, warmup=True, exec_context: execution_context.ExecutionContext=None):
         check_jit_script_function()
-        model = torch.jit.load(folder_paths.get_full_path_or_raise("nlf", nlf_model)).eval()
+        model = torch.jit.load(folder_paths.get_full_path_or_raise(exec_context, "nlf", nlf_model)).eval()
 
         if warmup:
             log.info("Warming up NLF model...")
@@ -132,11 +137,14 @@ class LoadNLFModel:
 
 class LoadVQVAE:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(s, context: execution_context.ExecutionContext):
         return {
             "required": {
-                "model_name": (folder_paths.get_filename_list("vae"), {"tooltip": "These models are loaded from 'ComfyUI/models/vae'"}),
+                "model_name": (folder_paths.get_filename_list(context, "vae"), {"tooltip": "These models are loaded from 'ComfyUI/models/vae'"}),
             },
+            "hidden": {
+                "context": "EXECUTION_CONTEXT"
+            }
         }
 
     RETURN_TYPES = ("VQVAE",)
@@ -144,8 +152,8 @@ class LoadVQVAE:
     FUNCTION = "loadmodel"
     CATEGORY = "WanVideoWrapper"
 
-    def loadmodel(self, model_name):
-        model_path = folder_paths.get_full_path("vae", model_name)
+    def loadmodel(self, model_name, context: execution_context.ExecutionContext):
+        model_path = folder_paths.get_full_path(context, "vae", model_name)
         vae_sd = load_torch_file(model_path, safe_load=True)
 
         # Get motion tokenizer

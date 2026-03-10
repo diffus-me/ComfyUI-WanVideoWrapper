@@ -12,6 +12,9 @@ from comfy.utils import ProgressBar, common_upscale
 from comfy.clip_vision import clip_preprocess, ClipVisionModel
 import folder_paths
 
+import execution_context
+
+
 script_directory = os.path.dirname(os.path.abspath(__file__))
 
 device = mm.get_torch_device()
@@ -188,9 +191,9 @@ def get_cached_text_embeds(positive_prompt, negative_prompt):
 
 class WanVideoTextEncodeCached:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(s, context: execution_context.ExecutionContext):
         return {"required": {
-            "model_name": (folder_paths.get_filename_list("text_encoders"), {"tooltip": "These models are loaded from 'ComfyUI/models/text_encoders'"}),
+            "model_name": (folder_paths.get_filename_list(context, "text_encoders"), {"tooltip": "These models are loaded from 'ComfyUI/models/text_encoders'"}),
             "precision": (["fp32", "bf16"],
                     {"default": "bf16"}
                 ),
@@ -202,6 +205,9 @@ class WanVideoTextEncodeCached:
             },
             "optional": {
                 "extender_args": ("WANVIDEOPROMPTEXTENDER_ARGS", {"tooltip": "Use this node to extend the prompt with additional text."}),
+            },
+            "hidden": {
+                "exec_context": "EXECUTION_CONTEXT",
             }
         }
 
@@ -219,7 +225,7 @@ of the original Wan templates or a custom system prompt.
 """
 
 
-    def process(self, model_name, precision, positive_prompt, negative_prompt, quantization='disabled', use_disk_cache=True, device="gpu", extender_args=None):
+    def process(self, model_name, precision, positive_prompt, negative_prompt, quantization='disabled', use_disk_cache=True, device="gpu", extender_args=None, exec_context: execution_context.ExecutionContext=None):
         from .nodes_model_loading import LoadWanVideoT5TextEncoder
         pbar = ProgressBar(3)
 
@@ -238,7 +244,9 @@ of the original Wan templates or a custom system prompt.
                 qwen, = QwenLoader().load(
                     extender_args["model"], 
                     load_device="main_device" if device == "gpu" else "cpu", 
-                    precision=precision)
+                    precision=precision,
+                    exec_context=exec_context,
+                )
                 positive_prompt, = WanVideoPromptExtender().generate(
                     qwen=qwen,
                     max_new_tokens=extender_args["max_new_tokens"],

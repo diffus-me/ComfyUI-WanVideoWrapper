@@ -1,3 +1,4 @@
+import execution_context
 import folder_paths
 import torch
 import torch.nn.functional as F
@@ -52,13 +53,16 @@ def get_audio_emb_window(audio_emb, frame_num, frame0_idx, audio_shift=2):
 
 class WhisperModelLoader:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(s, exec_context: execution_context.ExecutionContext):
         return {
             "required": {
-                "model": (folder_paths.get_filename_list("audio_encoders"), {"tooltip": "These models are loaded from the 'ComfyUI/models/audio_encoders' folder",}),
+                "model": (folder_paths.get_filename_list(exec_context, "audio_encoders"), {"tooltip": "These models are loaded from the 'ComfyUI/models/audio_encoders' folder",}),
                 "base_precision": (["fp32", "bf16", "fp16"], {"default": "fp16"}),
                 "load_device": (["main_device", "offload_device"], {"default": "main_device", "tooltip": "Initial device to load the model to, NOT recommended with the larger models unless you have 48GB+ VRAM"}),
             },
+            "hidden": {
+                "exec_context": "EXECUTION_CONTEXT",
+            }
         }
 
     RETURN_TYPES = ("WHISPERMODEL",)
@@ -66,7 +70,7 @@ class WhisperModelLoader:
     FUNCTION = "loadmodel"
     CATEGORY = "WanVideoWrapper"
 
-    def loadmodel(self, model, base_precision, load_device):
+    def loadmodel(self, model, base_precision, load_device, exec_context: execution_context.ExecutionContext):
         from transformers import WhisperConfig, WhisperModel, WhisperFeatureExtractor
 
         base_dtype = {"fp8_e4m3fn": torch.float8_e4m3fn, "fp8_e4m3fn_fast": torch.float8_e4m3fn, "bf16": torch.bfloat16, "fp16": torch.float16, "fp16_fast": torch.float16, "fp32": torch.float32}[base_precision]
@@ -100,7 +104,7 @@ class WhisperModelLoader:
 
         feature_extractor = WhisperFeatureExtractor(**feature_extractor_config)
 
-        model_path = folder_paths.get_full_path_or_raise("audio_encoders", model)
+        model_path = folder_paths.get_full_path_or_raise(exec_context, "audio_encoders", model)
         sd = load_torch_file(model_path, device=transformer_load_device, safe_load=True)
 
         for name, param in whisper.named_parameters():
