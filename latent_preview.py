@@ -96,12 +96,12 @@ def get_previewer(exec_context, device, latent_format):
                 previewer = WrappedPreviewer(previewer, rate=4)
     return previewer
 
-def prepare_callback(context, model, steps, x0_output_dict=None):
+def prepare_callback(exec_context, model, steps, x0_output_dict=None):
     preview_format = "JPEG"
     if preview_format not in ["JPEG", "PNG"]:
         preview_format = "JPEG"
 
-    previewer = get_previewer(context, model.load_device, model.model.latent_format)
+    previewer = get_previewer(exec_context, model.load_device, model.model.latent_format)
 
     if steps is not None:
         pbar = comfy.utils.ProgressBar(steps)

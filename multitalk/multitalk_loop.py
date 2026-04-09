@@ -31,7 +31,7 @@ def multitalk_loop(self, **kwargs):
      humo_image_cond, humo_image_cond_neg, humo_audio, humo_reference_count,
      add_noise_to_samples, audio_stride, use_tsr, tsr_k, tsr_sigma, fantasy_portrait_input,
      noise, timesteps, force_offload, add_cond, control_latents, audio_proj,
-     control_camera_latents, samples, masks, seed_g, gguf_reader, predict_func
+     control_camera_latents, samples, masks, seed_g, gguf_reader, predict_func, exec_context
     ) = (kwargs.get(k) for k in (
         'latent', 'total_steps', 'steps', 'start_step', 'end_step', 'shift', 'cfg',
         'denoise_strength', 'sigmas', 'weight_dtype', 'transformer', 'patcher',
@@ -42,7 +42,7 @@ def multitalk_loop(self, **kwargs):
         'add_noise_to_samples', 'audio_stride', 'use_tsr', 'tsr_k', 'tsr_sigma',
         'fantasy_portrait_input', 'noise', 'timesteps', 'force_offload', 'add_cond',
         'control_latents', 'audio_proj', 'control_camera_latents', 'samples', 'masks',
-        'seed_g', 'gguf_reader', 'predict_with_cfg'
+        'seed_g', 'gguf_reader', 'predict_with_cfg', 'exec_context'
     ))
 
     mode = image_embeds.get("multitalk_mode", "multitalk")
@@ -118,7 +118,7 @@ def multitalk_loop(self, **kwargs):
 
     total_frames = len(audio_embedding[0])
     estimated_iterations = total_frames // (frame_num - motion_frame - drop_frames) + 1
-    callback = prepare_callback(patcher, estimated_iterations)
+    callback = prepare_callback(exec_context, patcher, estimated_iterations)
 
     # If reference_video is provided, extract keyframes from it
     if mode == "skyreelsv3" and reference_video is not None:

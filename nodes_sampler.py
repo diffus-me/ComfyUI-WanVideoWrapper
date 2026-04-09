@@ -3,6 +3,8 @@ import torch
 import numpy as np
 from tqdm import tqdm
 import inspect
+
+import execution_context
 from .wanvideo.modules.model import rope_params
 from .custom_linear import remove_lora_from_module, set_lora_params, _replace_linear
 from .wanvideo.schedulers import get_scheduler, scheduler_list
@@ -69,6 +71,9 @@ class WanVideoSampler:
                 "start_step": ("INT", {"default": 0, "min": 0, "max": 10000, "step": 1, "tooltip": "Start step for the sampling, 0 means full sampling, otherwise samples only from this step"}),
                 "end_step": ("INT", {"default": -1, "min": -1, "max": 10000, "step": 1, "tooltip": "End step for the sampling, -1 means full sampling, otherwise samples only until this step"}),
                 "add_noise_to_samples": ("BOOLEAN", {"default": False, "tooltip": "Add noise to the samples before sampling, needed for video2video sampling when starting from clean video"}),
+            },
+            "hidden": {
+                "exec_context": "EXECUTION_CONTEXT"
             }
         }
 
@@ -80,7 +85,8 @@ class WanVideoSampler:
     def process(self, model, image_embeds, shift, steps, cfg, seed, scheduler, riflex_freq_index, text_embeds=None,
         force_offload=True, samples=None, feta_args=None, denoise_strength=1.0, context_options=None,
         cache_args=None, teacache_args=None, flowedit_args=None, batched_cfg=False, slg_args=None, rope_function="default", loop_args=None,
-        experimental_args=None, sigmas=None, unianimate_poses=None, fantasytalking_embeds=None, uni3c_embeds=None, multitalk_embeds=None, freeinit_args=None, start_step=0, end_step=-1, add_noise_to_samples=False):
+        experimental_args=None, sigmas=None, unianimate_poses=None, fantasytalking_embeds=None, uni3c_embeds=None, multitalk_embeds=None, freeinit_args=None, start_step=0, end_step=-1, add_noise_to_samples=False,
+        exec_context: execution_context.ExecutionContext=None):
         if flowedit_args is not None:
             raise Exception("FlowEdit support has been deprecated and removed due to lack of use and code maintainability")
         patcher = model
@@ -1703,7 +1709,7 @@ class WanVideoSampler:
             from latent_preview import prepare_callback
         else:
             from .latent_preview import prepare_callback #custom for tiny VAE previews
-        callback = prepare_callback(patcher, len(timesteps))
+        callback = prepare_callback(exec_context, patcher, len(timesteps))
 
         if not multitalk_sampling and not framepack and not wananimate_loop:
             log.info("-" * 10 + " Sampling start " + "-" * 10)
@@ -2238,7 +2244,7 @@ class WanVideoSampler:
                         end_latent = latent_window_size
 
 
-                        callback = prepare_callback(patcher, estimated_iterations)
+                        callback = prepare_callback(exec_context, patcher, estimated_iterations)
                         log.info(f"Sampling {total_frames} frames in {estimated_iterations} windows, at {latent.shape[3]*vae_upscale_factor}x{latent.shape[2]*vae_upscale_factor} with {steps} steps")
 
                         # outer WanAnimate loop
