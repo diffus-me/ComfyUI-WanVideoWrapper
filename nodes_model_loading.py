@@ -39,7 +39,7 @@ except:
     PromptServer = None
 
 attention_modes = ["sdpa", "flash_attn_2", "flash_attn_3", "sageattn", "sageattn_3", "radial_sage_attention", "sageattn_compiled",
-                    "sageattn_ultravico", "comfy"]
+                    "sageattn_ultravico", "comfy", "auto"]
 
 #from city96's gguf nodes
 def update_folder_names_and_paths(key, targets=[]):
@@ -1130,6 +1130,16 @@ class WanVideoModelLoader:
                   fantasytalking_model=None, multitalk_model=None, fantasyportrait_model=None, rms_norm_function="default",
                   context: execution_context.ExecutionContext=None):
         assert not (vram_management_args is not None and block_swap_args is not None), "Can't use both block_swap_args and vram_management_args at the same time"
+        if attention_mode == "auto" or "sage" in attention_mode:
+            try:
+                from sageattention import sageattn
+                if attention_mode == "auto":
+                    attention_mode = "sageattn"
+            except Exception as e:
+                if attention_mode == "auto":
+                    attention_mode = "sdpa"
+                else:
+                    raise Exception(f"Can't import SageAttention: {str(e)}")
         if vace_model is not None:
             extra_model = vace_model
         lora_low_mem_load = merge_loras = False
